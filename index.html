@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>인구 기반 랜덤 나라 뽑기</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c27;
+    --border: rgba(255,255,255,0.07);
+    --accent: #e8ff47;
+    --accent2: #47ffe8;
+    --text: #f0f0f0;
+    --muted: #7a7a8c;
+    --card-radius: 20px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glowing orb */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(232,255,71,0.07) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 700px;
+    padding: 3rem 1.5rem 4rem;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  header .label {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid rgba(232,255,71,0.3);
+    padding: 4px 14px;
+    border-radius: 100px;
+    margin-bottom: 1rem;
+    font-weight: 500;
+  }
+
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3rem, 10vw, 5.5rem);
+    letter-spacing: 0.04em;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  header h1 span {
+    color: var(--accent);
+  }
+
+  header p {
+    margin-top: 0.8rem;
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 300;
+    line-height: 1.6;
+  }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 2rem;
+  }
+
+  .filter-btn {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 7px 18px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+  }
+
+  .filter-btn:hover {
+    border-color: rgba(232,255,71,0.4);
+    color: var(--text);
+  }
+
+  .filter-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0a0a0f;
+    font-weight: 700;
+  }
+
+  /* Roll button */
+  .roll-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2rem;
+  }
+
+  .roll-btn {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    letter-spacing: 0.12em;
+    padding: 18px 60px;
+    border-radius: 100px;
+    border: none;
+    background: var(--accent);
+    color: #0a0a0f;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 0 40px rgba(232,255,71,0.25);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .roll-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .roll-btn:hover {
+    transform: scale(1.04);
+    box-shadow: 0 0 60px rgba(232,255,71,0.4);
+  }
+
+  .roll-btn:active {
+    transform: scale(0.97);
+  }
+
+  .roll-btn.spinning {
+    pointer-events: none;
+    opacity: 0.8;
+  }
+
+  /* Result card */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 2.5rem 2rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.4s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-card.revealed {
+    border-color: rgba(232,255,71,0.25);
+  }
+
+  .result-card .glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(232,255,71,0.05) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+
+  .result-card.revealed .glow { opacity: 1; }
+
+  .placeholder-text {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 300;
+  }
+
+  .result-flag {
+    font-size: 80px;
+    line-height: 1;
+    margin-bottom: 16px;
+    animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+
+  .result-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.2rem, 7vw, 3.5rem);
+    letter-spacing: 0.06em;
+    color: var(--text);
+    animation: slideUp 0.35s ease both;
+  }
+
+  .result-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-weight: 300;
+    animation: slideUp 0.4s ease both;
+  }
+
+  .result-sub span {
+    color: var(--accent2);
+    font-weight: 500;
+  }
+
+  /* Probability bar */
+  .prob-section {
+    margin-top: 20px;
+    width: 100%;
+    max-width: 340px;
+    animation: slideUp 0.45s ease both;
+  }
+
+  .prob-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-weight: 300;
+  }
+
+  .prob-header strong {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .prob-track {
+    height: 4px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+
+  .prob-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 100px;
+    width: 0;
+    transition: width 0.8s cubic-bezier(0.25,0.46,0.45,0.94);
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 12px;
+    text-align: center;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+    font-weight: 300;
+  }
+
+  .stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+
+  /* History */
+  .history-section {
+    margin-top: 0;
+  }
+
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .history-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .clear-btn {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .clear-btn:hover {
+    border-color: rgba(255,100,100,0.4);
+    color: #ff6464;
+  }
+
+  .history-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 16px;
+    animation: slideIn 0.25s ease both;
+    font-size: 14px;
+  }
+
+  .history-item .h-flag { font-size: 22px; flex-shrink: 0; }
+  .history-item .h-name { font-weight: 500; flex: 1; }
+  .history-item .h-pop { font-size: 12px; color: var(--muted); font-weight: 300; }
+  .history-item .h-pct {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .empty-history {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 20px 0;
+    font-weight: 300;
+  }
+
+  /* Lowest probability banner */
+  .lucky-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid rgba(71,255,232,0.25);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    animation: slideIn 0.3s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .lucky-banner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at left center, rgba(71,255,232,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .lucky-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #0a0a0f;
+    background: var(--accent2);
+    padding: 3px 10px;
+    border-radius: 100px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .lucky-flag { font-size: 26px; flex-shrink: 0; }
+  .lucky-name { font-weight: 500; font-size: 15px; flex: 1; }
+  .lucky-pct {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.2rem;
+    color: var(--accent2);
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  /* Spinner overlay */
+  .spinner-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    animation: pulse 0.5s ease infinite alternate;
+  }
+
+  /* Animations */
+  @keyframes popIn {
+    from { transform: scale(0.5); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(16px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+  @keyframes slideIn {
+    from { transform: translateX(-10px); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
+  }
+
+  @keyframes pulse {
+    from { opacity: 0.3; }
+    to   { opacity: 0.8; }
+  }
+
+  /* ── RARE EFFECT OVERLAY ── */
+  #rareOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0,0,0,0.92);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    touch-action: none;
+  }
+  #rareOverlay.show { display: flex; }
+  .rare-particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .rare-particle {
+    position: absolute;
+    border-radius: 50%;
+    animation: particleFly 1.4s ease-out both;
+  }
+  @keyframes particleFly {
+    0%   { transform: translate(0,0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+  }
+  .rare-beams { position: absolute; inset: 0; pointer-events: none; }
+  .rare-beam {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 2px; height: 0;
+    transform-origin: top center;
+    opacity: 0;
+    animation: beamShot 1.6s ease-out both;
+  }
+  @keyframes beamShot {
+    0%   { opacity: 0; height: 0; }
+    20%  { opacity: 0.9; }
+    100% { opacity: 0; height: 55vh; }
+  }
+  .rare-ring {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%,-50%);
+    border-radius: 50%;
+    animation: rareRing 0.7s ease-out both;
+    pointer-events: none;
+  }
+  @keyframes rareRing {
+    0%   { width: 0; height: 0; opacity: 1; }
+    100% { width: 320px; height: 320px; opacity: 0; }
+  }
+  .rare-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(1.8rem, 8vw, 3rem);
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-align: center;
+    animation: rareLabelAnim 1.8s ease both;
+    z-index: 1;
+    text-shadow: 0 0 40px rgba(232,255,71,0.7);
+  }
+  @keyframes rareLabelAnim {
+    0%   { opacity: 0; transform: scale(0.5) translateY(20px); }
+    30%  { opacity: 1; transform: scale(1.1) translateY(0); }
+    70%  { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; }
+  }
+  .rare-flag-big {
+    font-size: clamp(5rem, 20vw, 8rem);
+    animation: rareFlagAnim 1.8s ease both;
+    z-index: 1;
+    line-height: 1;
+    margin-bottom: 12px;
+  }
+  @keyframes rareFlagAnim {
+    0%   { opacity: 0; transform: scale(0.3) rotate(-10deg); }
+    40%  { opacity: 1; transform: scale(1.15) rotate(3deg); }
+    70%  { transform: scale(1) rotate(0); }
+    100% { opacity: 0; }
+  }
+  .rare-rarity-tag {
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    font-weight: 700;
+    padding: 4px 16px;
+    border-radius: 100px;
+    z-index: 1;
+    animation: rareLabelAnim 1.8s ease both;
+    animation-delay: 0.1s;
+  }
+
+  /* ── RESPONSIVE / MOBILE ── */
+  @media (max-width: 600px) {
+    .wrapper { padding: 1.5rem 1rem 3rem; }
+    header h1 { font-size: clamp(2.4rem, 12vw, 4rem); }
+    .stats-row { gap: 8px; }
+    .stat-card { padding: 10px 6px; }
+    .stat-value { font-size: 1.2rem; }
+    .stat-label { font-size: 9px; }
+    .roll-btn { padding: 14px 0; font-size: 1.3rem; width: 100%; }
+    .filter-bar { gap: 5px; }
+    .filter-btn { font-size: 11px; padding: 5px 10px; }
+    .dex-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 7px; }
+    .dex-card { padding: 10px 5px 8px; }
+    .dex-flag { font-size: 26px; }
+    .dex-name { font-size: 10px; }
+    .tab-btn { padding: 7px 12px; font-size: 11px; }
+    .history-item .h-pop { display: none; }
+    .modal { padding: 1.5rem 1rem; }
+    .modal-flag { font-size: 52px; }
+    .modal-name { font-size: 1.8rem; }
+    .dex-controls { gap: 6px; }
+    .dex-search { font-size: 13px; }
+  }
+
+  /* ── TAB NAV ── */
+  .tab-nav {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 4px;
+    margin: 0 auto 2.5rem;
+    width: fit-content;
+    max-width: calc(100% - 2rem);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tab-nav::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 18px;
+    border-radius: 100px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tab-btn.active {
+    background: var(--accent);
+    color: #0a0a0f;
+    font-weight: 700;
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── DEX FILTER TABS ── */
+  .dex-filter-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .dex-ftab {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dex-ftab.active {
+    background: var(--accent2);
+    border-color: var(--accent2);
+    color: #0a0a0f;
+    font-weight: 700;
+  }
+
+  /* ── DEX ── */
+  .dex-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 1.2rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .dex-search {
+    flex: 1;
+    min-width: 160px;
+    padding: 9px 14px;
+    border-radius: var(--card-radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .dex-search:focus { border-color: rgba(232,255,71,0.4); }
+  .dex-search::placeholder { color: var(--muted); }
+  .dex-sort {
+    padding: 9px 12px;
+    border-radius: var(--card-radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+  }
+  .dex-count {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .dex-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  .dex-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 10px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .dex-card:hover {
+    border-color: rgba(232,255,71,0.35);
+    transform: translateY(-2px);
+  }
+  .dex-card.seen { border-color: rgba(71,255,232,0.3); }
+  .dex-card.seen::after {
+    content: '✓';
+    position: absolute;
+    top: 6px; right: 8px;
+    font-size: 10px;
+    color: var(--accent2);
+    font-weight: 700;
+  }
+  .dex-no {
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-weight: 300;
+  }
+  .dex-flag { font-size: 36px; line-height: 1; margin-bottom: 8px; }
+  .dex-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .dex-pop {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+  .dex-region-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 2px 7px;
+    border-radius: 100px;
+    margin-top: 5px;
+    text-transform: uppercase;
+  }
+
+  /* Modal */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid rgba(232,255,71,0.2);
+    border-radius: var(--card-radius);
+    padding: 2rem;
+    max-width: 360px;
+    width: 100%;
+    text-align: center;
+    position: relative;
+    animation: popIn 0.25s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  .modal-close {
+    position: absolute;
+    top: 12px; right: 14px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .modal-flag { font-size: 72px; margin-bottom: 12px; }
+  .modal-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .modal-continent { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .modal-table { width: 100%; font-size: 13px; text-align: left; }
+  .modal-table tr td:first-child { color: var(--muted); padding: 5px 0; width: 50%; }
+  .modal-table tr td:last-child { font-weight: 500; color: var(--text); }
+  .modal-pct { color: var(--accent); }
+  .modal-seen-badge {
+    display: inline-block;
+    margin-top: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--accent2);
+    border: 1px solid rgba(71,255,232,0.35);
+    padding: 4px 14px;
+    border-radius: 100px;
+  }
+  .dex-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+  }
+  .dex-progress-track {
+    flex: 1;
+    height: 5px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+  .dex-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 100px;
+    transition: width 0.5s ease;
+  }
+  .dex-progress-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .dex-progress-count { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; color: var(--accent); }
+</style>
+</head>
+<body>
+<!-- RARE OVERLAY -->
+<div id="rareOverlay">
+  <div class="rare-particles" id="rareParticles"></div>
+  <div class="rare-beams" id="rareBeams"></div>
+  <div class="rare-flag-big" id="rareFlagBig"></div>
+  <div class="rare-label" id="rareLabel"></div>
+  <div class="rare-rarity-tag" id="rareTag"></div>
+</div>
+
+<div class="wrapper">
+
+  <header>
+    <div class="label">Population Weighted</div>
+    <h1>랜덤 <span>나라</span> 뽑기</h1>
+    <p>인구가 많은 나라일수록 뽑힐 확률이 높아집니다</p>
+  </header>
+
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('spin',this)">뽑기</button>
+    <button class="tab-btn" onclick="switchTab('dex',this)">도감</button>
+  </div>
+
+  <!-- SPIN TAB -->
+  <div class="tab-panel active" id="tab-spin">
+  <div class="filter-bar" id="filterBar">
+    <button class="filter-btn active" data-region="all">전체</button>
+    <button class="filter-btn" data-region="asia">아시아</button>
+    <button class="filter-btn" data-region="europe">유럽</button>
+    <button class="filter-btn" data-region="africa">아프리카</button>
+    <button class="filter-btn" data-region="americas">아메리카</button>
+    <button class="filter-btn" data-region="oceania">오세아니아</button>
+  </div>
+
+  <div class="roll-wrap">
+    <button class="roll-btn" id="rollBtn" onclick="rollCountry()">SPIN !</button>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <div class="glow"></div>
+    <p class="placeholder-text">버튼을 눌러 나라를 뽑아보세요 🌍</p>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">뽑기 횟수</div>
+      <div class="stat-value" id="statTotal">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">현재 후보</div>
+      <div class="stat-value" id="statCount">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">총 인구</div>
+      <div class="stat-value" id="statPop">0억</div>
+    </div>
+  </div>
+
+  <div class="history-section">
+    <div id="luckyBanner" style="display:none;"></div>
+    <div class="history-header">
+      <span class="history-title">뽑기 기록</span>
+      <button class="clear-btn" onclick="clearHistory()">초기화</button>
+    </div>
+    <ul class="history-list" id="historyList">
+      <li class="empty-history">아직 뽑기 기록이 없습니다</li>
+    </ul>
+  </div>
+  </div><!-- /tab-spin -->
+
+  <!-- DEX TAB -->
+  <div class="tab-panel" id="tab-dex">
+    <div class="dex-progress">
+      <span class="dex-progress-count" id="dexSeenCount">0</span>
+      <div class="dex-progress-track">
+        <div class="dex-progress-fill" id="dexProgressFill" style="width:0%"></div>
+      </div>
+      <span class="dex-progress-label" id="dexProgressLabel">/ 195 나라 수집</span>
+    </div>
+    <div class="dex-filter-tabs">
+      <button class="dex-ftab active" data-dexfilter="all" onclick="setDexFilter(this,'all')">전체</button>
+      <button class="dex-ftab" data-dexfilter="seen" onclick="setDexFilter(this,'seen')">수집됨</button>
+      <button class="dex-ftab" data-dexfilter="unseen" onclick="setDexFilter(this,'unseen')">미수집</button>
+    </div>
+    <div class="dex-controls">
+      <input class="dex-search" type="text" placeholder="나라 검색..." id="dexSearch" oninput="renderDex()" />
+      <select class="dex-sort" id="dexSort" onchange="renderDex()">
+        <option value="pop-desc">인구 많은순</option>
+        <option value="pop-asc">인구 적은순</option>
+        <option value="name">이름순</option>
+        <option value="region">지역순</option>
+      </select>
+      <span class="dex-count" id="dexCount"></span>
+    </div>
+    <div class="dex-grid" id="dexGrid"></div>
+  </div><!-- /tab-dex -->
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+const countries = [
+  // 아시아
+  {name:"인도",flag:"🇮🇳",pop:1428627663,region:"asia",continent:"남아시아"},
+  {name:"중국",flag:"🇨🇳",pop:1425671352,region:"asia",continent:"동아시아"},
+  {name:"인도네시아",flag:"🇮🇩",pop:277534122,region:"asia",continent:"동남아시아"},
+  {name:"파키스탄",flag:"🇵🇰",pop:240485658,region:"asia",continent:"남아시아"},
+  {name:"방글라데시",flag:"🇧🇩",pop:172954319,region:"asia",continent:"남아시아"},
+  {name:"일본",flag:"🇯🇵",pop:123294513,region:"asia",continent:"동아시아"},
+  {name:"필리핀",flag:"🇵🇭",pop:117337368,region:"asia",continent:"동남아시아"},
+  {name:"베트남",flag:"🇻🇳",pop:98858950,region:"asia",continent:"동남아시아"},
+  {name:"이란",flag:"🇮🇷",pop:89172767,region:"asia",continent:"서아시아"},
+  {name:"터키",flag:"🇹🇷",pop:85816199,region:"asia",continent:"서아시아"},
+  {name:"태국",flag:"🇹🇭",pop:71801279,region:"asia",continent:"동남아시아"},
+  {name:"이라크",flag:"🇮🇶",pop:42164965,region:"asia",continent:"서아시아"},
+  {name:"사우디아라비아",flag:"🇸🇦",pop:36408820,region:"asia",continent:"서아시아"},
+  {name:"말레이시아",flag:"🇲🇾",pop:34308525,region:"asia",continent:"동남아시아"},
+  {name:"우즈베키스탄",flag:"🇺🇿",pop:35300000,region:"asia",continent:"중앙아시아"},
+  {name:"예멘",flag:"🇾🇪",pop:34449825,region:"asia",continent:"서아시아"},
+  {name:"네팔",flag:"🇳🇵",pop:30034989,region:"asia",continent:"남아시아"},
+  {name:"한국",flag:"🇰🇷",pop:51744876,region:"asia",continent:"동아시아"},
+  {name:"북한",flag:"🇰🇵",pop:26160821,region:"asia",continent:"동아시아"},
+  {name:"대만",flag:"🇹🇼",pop:23570000,region:"asia",continent:"동아시아"},
+  {name:"카자흐스탄",flag:"🇰🇿",pop:19606633,region:"asia",continent:"중앙아시아"},
+  {name:"시리아",flag:"🇸🇾",pop:21324000,region:"asia",continent:"서아시아"},
+  {name:"미얀마",flag:"🇲🇲",pop:54577997,region:"asia",continent:"동남아시아"},
+  {name:"아프가니스탄",flag:"🇦🇫",pop:42239854,region:"asia",continent:"남아시아"},
+  {name:"스리랑카",flag:"🇱🇰",pop:21893579,region:"asia",continent:"남아시아"},
+  {name:"캄보디아",flag:"🇰🇭",pop:16944826,region:"asia",continent:"동남아시아"},
+  {name:"홍콩",flag:"🇭🇰",pop:7491609,region:"asia",continent:"동아시아"},
+  {name:"라오스",flag:"🇱🇦",pop:7633779,region:"asia",continent:"동남아시아"},
+  {name:"요르단",flag:"🇯🇴",pop:10203140,region:"asia",continent:"서아시아"},
+  {name:"아제르바이잔",flag:"🇦🇿",pop:10312992,region:"asia",continent:"서아시아"},
+  {name:"아랍에미리트",flag:"🇦🇪",pop:9441129,region:"asia",continent:"서아시아"},
+  {name:"타지키스탄",flag:"🇹🇯",pop:9952787,region:"asia",continent:"중앙아시아"},
+  {name:"이스라엘",flag:"🇮🇱",pop:9174520,region:"asia",continent:"서아시아"},
+  {name:"투르크메니스탄",flag:"🇹🇲",pop:6117924,region:"asia",continent:"중앙아시아"},
+  {name:"싱가포르",flag:"🇸🇬",pop:5917648,region:"asia",continent:"동남아시아"},
+  {name:"키르기스스탄",flag:"🇰🇬",pop:6735347,region:"asia",continent:"중앙아시아"},
+  {name:"레바논",flag:"🇱🇧",pop:5353930,region:"asia",continent:"서아시아"},
+  {name:"팔레스타인",flag:"🇵🇸",pop:5371230,region:"asia",continent:"서아시아"},
+  {name:"오만",flag:"🇴🇲",pop:4644384,region:"asia",continent:"서아시아"},
+  {name:"쿠웨이트",flag:"🇰🇼",pop:4310108,region:"asia",continent:"서아시아"},
+  {name:"조지아",flag:"🇬🇪",pop:3728573,region:"asia",continent:"서아시아"},
+  {name:"몽골",flag:"🇲🇳",pop:3447157,region:"asia",continent:"동아시아"},
+  {name:"아르메니아",flag:"🇦🇲",pop:2777970,region:"asia",continent:"서아시아"},
+  {name:"카타르",flag:"🇶🇦",pop:2716391,region:"asia",continent:"서아시아"},
+  {name:"바레인",flag:"🇧🇭",pop:1485509,region:"asia",continent:"서아시아"},
+  {name:"동티모르",flag:"🇹🇱",pop:1341296,region:"asia",continent:"동남아시아"},
+  {name:"부탄",flag:"🇧🇹",pop:787424,region:"asia",continent:"남아시아"},
+  {name:"몰디브",flag:"🇲🇻",pop:521021,region:"asia",continent:"남아시아"},
+  {name:"브루나이",flag:"🇧🇳",pop:449002,region:"asia",continent:"동남아시아"},
+  // 유럽
+  {name:"러시아",flag:"🇷🇺",pop:144444359,region:"europe",continent:"동유럽"},
+  {name:"독일",flag:"🇩🇪",pop:83294633,region:"europe",continent:"서유럽"},
+  {name:"영국",flag:"🇬🇧",pop:67736802,region:"europe",continent:"서유럽"},
+  {name:"프랑스",flag:"🇫🇷",pop:64756584,region:"europe",continent:"서유럽"},
+  {name:"이탈리아",flag:"🇮🇹",pop:58870762,region:"europe",continent:"서유럽"},
+  {name:"스페인",flag:"🇪🇸",pop:47422613,region:"europe",continent:"서유럽"},
+  {name:"우크라이나",flag:"🇺🇦",pop:43531422,region:"europe",continent:"동유럽"},
+  {name:"폴란드",flag:"🇵🇱",pop:41026067,region:"europe",continent:"동유럽"},
+  {name:"루마니아",flag:"🇷🇴",pop:19659267,region:"europe",continent:"동유럽"},
+  {name:"네덜란드",flag:"🇳🇱",pop:17890000,region:"europe",continent:"서유럽"},
+  {name:"벨기에",flag:"🇧🇪",pop:11686140,region:"europe",continent:"서유럽"},
+  {name:"체코",flag:"🇨🇿",pop:10900555,region:"europe",continent:"중앙유럽"},
+  {name:"스웨덴",flag:"🇸🇪",pop:10521556,region:"europe",continent:"북유럽"},
+  {name:"포르투갈",flag:"🇵🇹",pop:10247605,region:"europe",continent:"서유럽"},
+  {name:"그리스",flag:"🇬🇷",pop:10341277,region:"europe",continent:"남유럽"},
+  {name:"헝가리",flag:"🇭🇺",pop:10156239,region:"europe",continent:"중앙유럽"},
+  {name:"벨라루스",flag:"🇧🇾",pop:9534954,region:"europe",continent:"동유럽"},
+  {name:"스위스",flag:"🇨🇭",pop:8796669,region:"europe",continent:"서유럽"},
+  {name:"오스트리아",flag:"🇦🇹",pop:9027999,region:"europe",continent:"서유럽"},
+  {name:"세르비아",flag:"🇷🇸",pop:6834326,region:"europe",continent:"남유럽"},
+  {name:"불가리아",flag:"🇧🇬",pop:6447710,region:"europe",continent:"동유럽"},
+  {name:"덴마크",flag:"🇩🇰",pop:5910913,region:"europe",continent:"북유럽"},
+  {name:"핀란드",flag:"🇫🇮",pop:5545475,region:"europe",continent:"북유럽"},
+  {name:"슬로바키아",flag:"🇸🇰",pop:5795199,region:"europe",continent:"중앙유럽"},
+  {name:"노르웨이",flag:"🇳🇴",pop:5474360,region:"europe",continent:"북유럽"},
+  {name:"크로아티아",flag:"🇭🇷",pop:4008617,region:"europe",continent:"남유럽"},
+  {name:"아일랜드",flag:"🇮🇪",pop:5056935,region:"europe",continent:"서유럽"},
+  {name:"몰도바",flag:"🇲🇩",pop:3272996,region:"europe",continent:"동유럽"},
+  {name:"보스니아헤르체고비나",flag:"🇧🇦",pop:3210847,region:"europe",continent:"남유럽"},
+  {name:"알바니아",flag:"🇦🇱",pop:2832439,region:"europe",continent:"남유럽"},
+  {name:"리투아니아",flag:"🇱🇹",pop:2718352,region:"europe",continent:"북유럽"},
+  {name:"북마케도니아",flag:"🇲🇰",pop:2093599,region:"europe",continent:"남유럽"},
+  {name:"슬로베니아",flag:"🇸🇮",pop:2116792,region:"europe",continent:"중앙유럽"},
+  {name:"라트비아",flag:"🇱🇻",pop:1830211,region:"europe",continent:"북유럽"},
+  {name:"에스토니아",flag:"🇪🇪",pop:1322765,region:"europe",continent:"북유럽"},
+  {name:"코소보",flag:"🇽🇰",pop:1775378,region:"europe",continent:"남유럽"},
+  {name:"키프로스",flag:"🇨🇾",pop:1260138,region:"europe",continent:"남유럽"},
+  {name:"룩셈부르크",flag:"🇱🇺",pop:660809,region:"europe",continent:"서유럽"},
+  {name:"몬테네그로",flag:"🇲🇪",pop:626485,region:"europe",continent:"남유럽"},
+  {name:"몰타",flag:"🇲🇹",pop:535064,region:"europe",continent:"남유럽"},
+  {name:"아이슬란드",flag:"🇮🇸",pop:376248,region:"europe",continent:"북유럽"},
+  {name:"안도라",flag:"🇦🇩",pop:79824,region:"europe",continent:"서유럽"},
+  {name:"리히텐슈타인",flag:"🇱🇮",pop:38387,region:"europe",continent:"서유럽"},
+  {name:"모나코",flag:"🇲🇨",pop:36469,region:"europe",continent:"서유럽"},
+  {name:"산마리노",flag:"🇸🇲",pop:33660,region:"europe",continent:"남유럽"},
+  {name:"바티칸",flag:"🇻🇦",pop:800,region:"europe",continent:"남유럽"},
+  // 아프리카
+  {name:"나이지리아",flag:"🇳🇬",pop:223804632,region:"africa",continent:"서아프리카"},
+  {name:"에티오피아",flag:"🇪🇹",pop:126527060,region:"africa",continent:"동아프리카"},
+  {name:"이집트",flag:"🇪🇬",pop:105914499,region:"africa",continent:"북아프리카"},
+  {name:"콩고",flag:"🇨🇩",pop:102262808,region:"africa",continent:"중앙아프리카"},
+  {name:"탄자니아",flag:"🇹🇿",pop:67438106,region:"africa",continent:"동아프리카"},
+  {name:"남아프리카",flag:"🇿🇦",pop:60414495,region:"africa",continent:"남아프리카"},
+  {name:"케냐",flag:"🇰🇪",pop:55100586,region:"africa",continent:"동아프리카"},
+  {name:"알제리",flag:"🇩🇿",pop:45606480,region:"africa",continent:"북아프리카"},
+  {name:"수단",flag:"🇸🇩",pop:46874204,region:"africa",continent:"북아프리카"},
+  {name:"우간다",flag:"🇺🇬",pop:48582334,region:"africa",continent:"동아프리카"},
+  {name:"모로코",flag:"🇲🇦",pop:37840044,region:"africa",continent:"북아프리카"},
+  {name:"모잠비크",flag:"🇲🇿",pop:32790338,region:"africa",continent:"동아프리카"},
+  {name:"가나",flag:"🇬🇭",pop:33475870,region:"africa",continent:"서아프리카"},
+  {name:"앙골라",flag:"🇦🇴",pop:36684202,region:"africa",continent:"중앙아프리카"},
+  {name:"카메룬",flag:"🇨🇲",pop:28647293,region:"africa",continent:"중앙아프리카"},
+  {name:"코트디부아르",flag:"🇨🇮",pop:27478249,region:"africa",continent:"서아프리카"},
+  {name:"마다가스카르",flag:"🇲🇬",pop:29611714,region:"africa",continent:"동아프리카"},
+  {name:"니제르",flag:"🇳🇪",pop:26207977,region:"africa",continent:"서아프리카"},
+  {name:"말리",flag:"🇲🇱",pop:22414599,region:"africa",continent:"서아프리카"},
+  {name:"말라위",flag:"🇲🇼",pop:20931751,region:"africa",continent:"동아프리카"},
+  {name:"잠비아",flag:"🇿🇲",pop:20569737,region:"africa",continent:"동아프리카"},
+  {name:"부르키나파소",flag:"🇧🇫",pop:22673762,region:"africa",continent:"서아프리카"},
+  {name:"짐바브웨",flag:"🇿🇼",pop:16665409,region:"africa",continent:"동아프리카"},
+  {name:"세네갈",flag:"🇸🇳",pop:17763163,region:"africa",continent:"서아프리카"},
+  {name:"튀니지",flag:"🇹🇳",pop:11976182,region:"africa",continent:"북아프리카"},
+  {name:"기니",flag:"🇬🇳",pop:13859341,region:"africa",continent:"서아프리카"},
+  {name:"르완다",flag:"🇷🇼",pop:14094683,region:"africa",continent:"동아프리카"},
+  {name:"베냉",flag:"🇧🇯",pop:13712828,region:"africa",continent:"서아프리카"},
+  {name:"소말리아",flag:"🇸🇴",pop:18143378,region:"africa",continent:"동아프리카"},
+  {name:"차드",flag:"🇹🇩",pop:18278568,region:"africa",continent:"중앙아프리카"},
+  {name:"남수단",flag:"🇸🇸",pop:10913164,region:"africa",continent:"동아프리카"},
+  {name:"토고",flag:"🇹🇬",pop:8848699,region:"africa",continent:"서아프리카"},
+  {name:"시에라리온",flag:"🇸🇱",pop:8791092,region:"africa",continent:"서아프리카"},
+  {name:"리비아",flag:"🇱🇾",pop:6888388,region:"africa",continent:"북아프리카"},
+  {name:"콩고공화국",flag:"🇨🇬",pop:5970424,region:"africa",continent:"중앙아프리카"},
+  {name:"라이베리아",flag:"🇱🇷",pop:5418377,region:"africa",continent:"서아프리카"},
+  {name:"중앙아프리카공화국",flag:"🇨🇫",pop:5579144,region:"africa",continent:"중앙아프리카"},
+  {name:"모리타니",flag:"🇲🇷",pop:4614974,region:"africa",continent:"서아프리카"},
+  {name:"에리트레아",flag:"🇪🇷",pop:3748901,region:"africa",continent:"동아프리카"},
+  {name:"감비아",flag:"🇬🇲",pop:2773168,region:"africa",continent:"서아프리카"},
+  {name:"보츠와나",flag:"🇧🇼",pop:2630296,region:"africa",continent:"남아프리카"},
+  {name:"나미비아",flag:"🇳🇦",pop:2604172,region:"africa",continent:"남아프리카"},
+  {name:"가봉",flag:"🇬🇦",pop:2388992,region:"africa",continent:"중앙아프리카"},
+  {name:"레소토",flag:"🇱🇸",pop:2330318,region:"africa",continent:"남아프리카"},
+  {name:"기니비사우",flag:"🇬🇼",pop:2105566,region:"africa",continent:"서아프리카"},
+  {name:"적도기니",flag:"🇬🇶",pop:1714671,region:"africa",continent:"중앙아프리카"},
+  {name:"모리셔스",flag:"🇲🇺",pop:1300557,region:"africa",continent:"동아프리카"},
+  {name:"에스와티니",flag:"🇸🇿",pop:1210822,region:"africa",continent:"남아프리카"},
+  {name:"지부티",flag:"🇩🇯",pop:1136455,region:"africa",continent:"동아프리카"},
+  {name:"코모로",flag:"🇰🇲",pop:821164,region:"africa",continent:"동아프리카"},
+  {name:"카보베르데",flag:"🇨🇻",pop:598682,region:"africa",continent:"서아프리카"},
+  {name:"상투메프린시페",flag:"🇸🇹",pop:231856,region:"africa",continent:"중앙아프리카"},
+  {name:"세이셸",flag:"🇸🇨",pop:107660,region:"africa",continent:"동아프리카"},
+  // 아메리카
+  {name:"미국",flag:"🇺🇸",pop:339996564,region:"americas",continent:"북아메리카"},
+  {name:"브라질",flag:"🇧🇷",pop:216422446,region:"americas",continent:"남아메리카"},
+  {name:"멕시코",flag:"🇲🇽",pop:128455567,region:"americas",continent:"북아메리카"},
+  {name:"콜롬비아",flag:"🇨🇴",pop:52215503,region:"americas",continent:"남아메리카"},
+  {name:"아르헨티나",flag:"🇦🇷",pop:45773884,region:"americas",continent:"남아메리카"},
+  {name:"페루",flag:"🇵🇪",pop:34352719,region:"americas",continent:"남아메리카"},
+  {name:"베네수엘라",flag:"🇻🇪",pop:28838499,region:"americas",continent:"남아메리카"},
+  {name:"칠레",flag:"🇨🇱",pop:19629590,region:"americas",continent:"남아메리카"},
+  {name:"에콰도르",flag:"🇪🇨",pop:18001000,region:"americas",continent:"남아메리카"},
+  {name:"과테말라",flag:"🇬🇹",pop:17109746,region:"americas",continent:"북아메리카"},
+  {name:"캐나다",flag:"🇨🇦",pop:38781292,region:"americas",continent:"북아메리카"},
+  {name:"쿠바",flag:"🇨🇺",pop:11194449,region:"americas",continent:"북아메리카"},
+  {name:"볼리비아",flag:"🇧🇴",pop:12388571,region:"americas",continent:"남아메리카"},
+  {name:"도미니카공화국",flag:"🇩🇴",pop:11332972,region:"americas",continent:"북아메리카"},
+  {name:"온두라스",flag:"🇭🇳",pop:10593798,region:"americas",continent:"북아메리카"},
+  {name:"파라과이",flag:"🇵🇾",pop:7359195,region:"americas",continent:"남아메리카"},
+  {name:"엘살바도르",flag:"🇸🇻",pop:6364943,region:"americas",continent:"북아메리카"},
+  {name:"니카라과",flag:"🇳🇮",pop:6948392,region:"americas",continent:"북아메리카"},
+  {name:"코스타리카",flag:"🇨🇷",pop:5213374,region:"americas",continent:"북아메리카"},
+  {name:"파나마",flag:"🇵🇦",pop:4337406,region:"americas",continent:"북아메리카"},
+  {name:"우루과이",flag:"🇺🇾",pop:3423108,region:"americas",continent:"남아메리카"},
+  {name:"자메이카",flag:"🇯🇲",pop:2825544,region:"americas",continent:"북아메리카"},
+  {name:"트리니다드토바고",flag:"🇹🇹",pop:1534937,region:"americas",continent:"북아메리카"},
+  {name:"가이아나",flag:"🇬🇾",pop:813834,region:"americas",continent:"남아메리카"},
+  {name:"수리남",flag:"🇸🇷",pop:618040,region:"americas",continent:"남아메리카"},
+  {name:"벨리즈",flag:"🇧🇿",pop:405272,region:"americas",continent:"북아메리카"},
+  {name:"바하마",flag:"🇧🇸",pop:407906,region:"americas",continent:"북아메리카"},
+  {name:"바베이도스",flag:"🇧🇧",pop:281995,region:"americas",continent:"북아메리카"},
+  {name:"세인트루시아",flag:"🇱🇨",pop:179651,region:"americas",continent:"북아메리카"},
+  {name:"그레나다",flag:"🇬🇩",pop:125438,region:"americas",continent:"북아메리카"},
+  {name:"세인트빈센트그레나딘",flag:"🇻🇨",pop:103948,region:"americas",continent:"북아메리카"},
+  {name:"앤티가바부다",flag:"🇦🇬",pop:93763,region:"americas",continent:"북아메리카"},
+  {name:"도미니카",flag:"🇩🇲",pop:72737,region:"americas",continent:"북아메리카"},
+  {name:"세인트키츠네비스",flag:"🇰🇳",pop:47606,region:"americas",continent:"북아메리카"},
+  // 오세아니아
+  {name:"호주",flag:"🇦🇺",pop:26439111,region:"oceania",continent:"오세아니아"},
+  {name:"파푸아뉴기니",flag:"🇵🇬",pop:10329931,region:"oceania",continent:"오세아니아"},
+  {name:"뉴질랜드",flag:"🇳🇿",pop:5123392,region:"oceania",continent:"오세아니아"},
+  {name:"피지",flag:"🇫🇯",pop:929766,region:"oceania",continent:"오세아니아"},
+  {name:"솔로몬제도",flag:"🇸🇧",pop:720556,region:"oceania",continent:"오세아니아"},
+  {name:"바누아투",flag:"🇻🇺",pop:334506,region:"oceania",continent:"오세아니아"},
+  {name:"사모아",flag:"🇼🇸",pop:222382,region:"oceania",continent:"오세아니아"},
+  {name:"키리바시",flag:"🇰🇮",pop:119446,region:"oceania",continent:"오세아니아"},
+  {name:"통가",flag:"🇹🇴",pop:100651,region:"oceania",continent:"오세아니아"},
+  {name:"미크로네시아",flag:"🇫🇲",pop:115021,region:"oceania",continent:"오세아니아"},
+  {name:"팔라우",flag:"🇵🇼",pop:18058,region:"oceania",continent:"오세아니아"},
+  {name:"마샬제도",flag:"🇲🇭",pop:41569,region:"oceania",continent:"오세아니아"},
+  {name:"투발루",flag:"🇹🇻",pop:11312,region:"oceania",continent:"오세아니아"},
+  {name:"나우루",flag:"🇳🇷",pop:10873,region:"oceania",continent:"오세아니아"},
+];
+
+const capitals = {
+  "인도":"뉴델리","중국":"베이징","인도네시아":"자카르타","파키스탄":"이슬라마바드",
+  "방글라데시":"다카","일본":"도쿄","필리핀":"마닐라","베트남":"하노이",
+  "이란":"테헤란","터키":"앙카라","태국":"방콕","이라크":"바그다드",
+  "사우디아라비아":"리야드","말레이시아":"쿠알라룸푸르","우즈베키스탄":"타슈켄트",
+  "예멘":"사나","네팔":"카트만두","한국":"서울","북한":"평양","대만":"타이베이",
+  "카자흐스탄":"아스타나","시리아":"다마스쿠스","미얀마":"네피도","아프가니스탄":"카불",
+  "스리랑카":"스리자야와르데네푸라코테","캄보디아":"프놈펜","홍콩":"홍콩","라오스":"비엔티안",
+  "요르단":"암만","아제르바이잔":"바쿠","아랍에미리트":"아부다비","타지키스탄":"두샨베",
+  "이스라엘":"예루살렘","투르크메니스탄":"아시가바트","싱가포르":"싱가포르","키르기스스탄":"비슈케크",
+  "레바논":"베이루트","팔레스타인":"라말라","오만":"무스카트","쿠웨이트":"쿠웨이트시티",
+  "조지아":"트빌리시","몽골":"울란바토르","아르메니아":"예레반","카타르":"도하",
+  "바레인":"마나마","동티모르":"딜리","부탄":"팀부","몰디브":"말레","브루나이":"반다르스리브가완",
+  "러시아":"모스크바","독일":"베를린","영국":"런던","프랑스":"파리","이탈리아":"로마",
+  "스페인":"마드리드","우크라이나":"키이우","폴란드":"바르샤바","루마니아":"부쿠레슈티",
+  "네덜란드":"암스테르담","벨기에":"브뤼셀","체코":"프라하","스웨덴":"스톡홀름",
+  "포르투갈":"리스본","그리스":"아테네","헝가리":"부다페스트","벨라루스":"민스크",
+  "스위스":"베른","오스트리아":"빈","세르비아":"베오그라드","불가리아":"소피아",
+  "덴마크":"코펜하겐","핀란드":"헬싱키","슬로바키아":"브라티슬라바","노르웨이":"오슬로",
+  "크로아티아":"자그레브","아일랜드":"더블린","몰도바":"키시나우","보스니아헤르체고비나":"사라예보",
+  "알바니아":"티라나","리투아니아":"빌뉴스","북마케도니아":"스코페","슬로베니아":"류블랴나",
+  "라트비아":"리가","에스토니아":"탈린","코소보":"프리슈티나","키프로스":"니코시아",
+  "룩셈부르크":"룩셈부르크시","몬테네그로":"포드고리차","몰타":"발레타","아이슬란드":"레이캬비크",
+  "안도라":"안도라라베야","리히텐슈타인":"파두츠","모나코":"모나코","산마리노":"산마리노","바티칸":"바티칸",
+  "나이지리아":"아부자","에티오피아":"아디스아바바","이집트":"카이로","콩고":"킨샤사",
+  "탄자니아":"도도마","남아프리카":"프리토리아","케냐":"나이로비","알제리":"알제",
+  "수단":"하르툼","우간다":"캄팔라","모로코":"라바트","모잠비크":"마푸토","가나":"아크라",
+  "앙골라":"루안다","카메룬":"야운데","코트디부아르":"야무수크로","마다가스카르":"안타나나리보",
+  "니제르":"니아메","말리":"바마코","말라위":"릴롱궤","잠비아":"루사카",
+  "부르키나파소":"와가두구","짐바브웨":"하라레","세네갈":"다카르","튀니지":"튀니스",
+  "기니":"코나크리","르완다":"키갈리","베냉":"포르토노보","소말리아":"모가디슈",
+  "차드":"은자메나","남수단":"주바","토고":"로메","시에라리온":"프리타운",
+  "리비아":"트리폴리","콩고공화국":"브라자빌","라이베리아":"몬로비아","중앙아프리카공화국":"방기",
+  "모리타니":"누악쇼트","에리트레아":"아스마라","감비아":"반줄","보츠와나":"가보로네",
+  "나미비아":"빈트후크","가봉":"리브르빌","레소토":"마세루","기니비사우":"비사우",
+  "적도기니":"말라보","모리셔스":"포트루이스","에스와티니":"음바바네","지부티":"지부티",
+  "코모로":"모로니","카보베르데":"프라이아","상투메프린시페":"상투메","세이셸":"빅토리아",
+  "미국":"워싱턴 D.C.","브라질":"브라질리아","멕시코":"멕시코시티","콜롬비아":"보고타",
+  "아르헨티나":"부에노스아이레스","페루":"리마","베네수엘라":"카라카스","칠레":"산티아고",
+  "에콰도르":"키토","과테말라":"과테말라시티","캐나다":"오타와","쿠바":"아바나",
+  "볼리비아":"수크레","도미니카공화국":"산토도밍고","온두라스":"테구시갈파","파라과이":"아순시온",
+  "엘살바도르":"산살바도르","니카라과":"마나과","코스타리카":"산호세","파나마":"파나마시티",
+  "우루과이":"몬테비데오","자메이카":"킹스턴","트리니다드토바고":"포트오브스페인",
+  "가이아나":"조지타운","수리남":"파라마리보","벨리즈":"벨모판","바하마":"나소",
+  "바베이도스":"브리지타운","세인트루시아":"캐스트리스","그레나다":"세인트조지스",
+  "세인트빈센트그레나딘":"킹스타운","앤티가바부다":"세인트존스","도미니카":"로조","세인트키츠네비스":"바스테르",
+  "호주":"캔버라","파푸아뉴기니":"포트모르즈비","뉴질랜드":"웰링턴","피지":"수바",
+  "솔로몬제도":"호니아라","바누아투":"포트빌라","사모아":"아피아","키리바시":"타라와",
+  "통가":"누쿠알로파","미크로네시아":"팔리키르","팔라우":"응게룰무드","마샬제도":"마주로",
+  "투발루":"푸나푸티","나우루":"야렌"
+};
+
+const regionColors = {
+  asia:     {bg:'rgba(71,255,232,0.1)', color:'#47ffe8'},
+  europe:   {bg:'rgba(100,149,255,0.1)', color:'#6495ff'},
+  africa:   {bg:'rgba(255,200,71,0.1)', color:'#ffc847'},
+  americas: {bg:'rgba(255,100,130,0.1)', color:'#ff6482'},
+  oceania:  {bg:'rgba(150,255,100,0.1)', color:'#96ff64'},
+};
+const regionLabel = {asia:'아시아',europe:'유럽',africa:'아프리카',americas:'아메리카',oceania:'오세아니아'};
+
+let seenSet = new Set();
+let dexFilter = 'all';
+
+function setDexFilter(el, val) {
+  dexFilter = val;
+  document.querySelectorAll('.dex-ftab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderDex();
+}
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (el) el.classList.add('active');
+  if (tab === 'dex') renderDex();
+}
+
+function renderDex() {
+  const q = document.getElementById('dexSearch').value.toLowerCase();
+  const sort = document.getElementById('dexSort').value;
+  const total = countries.reduce((s,c)=>s+c.pop,0);
+
+  let list = countries.filter(c => {
+    if (!c.name.toLowerCase().includes(q)) return false;
+    if (dexFilter === 'seen') return seenSet.has(c.name);
+    if (dexFilter === 'unseen') return !seenSet.has(c.name);
+    return true;
+  });
+
+  if (sort === 'pop-desc') list.sort((a,b) => b.pop - a.pop);
+  else if (sort === 'pop-asc') list.sort((a,b) => a.pop - b.pop);
+  else if (sort === 'name') list.sort((a,b) => a.name.localeCompare(b.name, 'ko'));
+  else if (sort === 'region') list.sort((a,b) => a.region.localeCompare(b.region) || b.pop - a.pop);
+
+  document.getElementById('dexCount').textContent = `${list.length}개국`;
+
+  const seenCount = seenSet.size;
+  document.getElementById('dexSeenCount').textContent = seenCount;
+  document.getElementById('dexProgressLabel').textContent = `/ ${countries.length} 나라 수집`;
+  document.getElementById('dexProgressFill').style.width = (seenCount / countries.length * 100) + '%';
+
+  const grid = document.getElementById('dexGrid');
+
+  if (dexFilter === 'seen' && list.length === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--muted);font-size:14px;">아직 뽑은 나라가 없어요.<br>뽑기 탭에서 나라를 수집해보세요!</div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map((c) => {
+    const rc = regionColors[c.region] || {bg:'rgba(255,255,255,0.05)',color:'#aaa'};
+    const seen = seenSet.has(c.name);
+    const idx = countries.indexOf(c) + 1;
+    const rar = getRarity(c.pop);
+    const rarBorder = rar ? `border-color:${rar.color}33;` : '';
+    const rarGlow   = rar ? `box-shadow:0 0 10px ${rar.color}22;` : '';
+    return `<div class="dex-card${seen?' seen':''}" style="${rarBorder}${rarGlow}" onclick="openModal(${countries.indexOf(c)})">
+      <div class="dex-no">#${String(idx).padStart(3,'0')}</div>
+      <div class="dex-flag">${c.flag}</div>
+      <div class="dex-name">${c.name}</div>
+      <div class="dex-pop">${formatPop(c.pop)}</div>
+      <div class="dex-region-badge" style="background:${rc.bg};color:${rc.color}">${regionLabel[c.region]}</div>
+      ${rar ? `<div style="font-size:8px;letter-spacing:0.1em;color:${rar.color};margin-top:3px;font-weight:700;">${rar.label.replace(/[✦★◆◇]/g,'').trim()}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openModal(idx) {
+  const c = countries[idx];
+  const total = countries.reduce((s,x)=>s+x.pop,0);
+  const pct = (c.pop / total * 100).toFixed(4);
+  const cap = capitals[c.name] || '—';
+  const rc = regionColors[c.region] || {bg:'',color:'#aaa'};
+  const seen = seenSet.has(c.name);
+
+  document.getElementById('modalContent').innerHTML = `
+    <div class="modal-flag">${c.flag}</div>
+    <div class="modal-name">${c.name}</div>
+    <div class="modal-continent">${c.continent} · ${regionLabel[c.region]}</div>
+    <table class="modal-table">
+      <tr><td>수도</td><td>${cap}</td></tr>
+      <tr><td>인구</td><td>${c.pop.toLocaleString()} 명</td></tr>
+      <tr><td>뽑힐 확률</td><td class="modal-pct">${pct}%</td></tr>
+      <tr><td>인구 순위</td><td>#${[...countries].sort((a,b)=>b.pop-a.pop).findIndex(x=>x.name===c.name)+1}</td></tr>
+    </table>
+    ${seen ? '<div class="modal-seen-badge">✓ 뽑기에서 수집됨</div>' : ''}
+  `;
+  document.getElementById('modalBackdrop').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalBackdrop'))
+    document.getElementById('modalBackdrop').classList.remove('open');
+}
+function closeModalDirect() {
+  document.getElementById('modalBackdrop').classList.remove('open');
+}
+let currentRegion = 'all';
+let history = [];
+let rollTotal = 0;
+
+function getFiltered() {
+  return currentRegion === 'all' ? countries : countries.filter(c => c.region === currentRegion);
+}
+
+function weightedRandom(list) {
+  const total = list.reduce((s, c) => s + c.pop, 0);
+  let r = Math.random() * total;
+  for (const c of list) { r -= c.pop; if (r <= 0) return c; }
+  return list[list.length - 1];
+}
+
+function formatPop(n) {
+  if (n >= 1e8) return (n / 1e8).toFixed(1) + '억 명';
+  if (n >= 1e4) return (n / 1e4).toFixed(0) + '만 명';
+  return n.toLocaleString() + '명';
+}
+
+function updateStats() {
+  const list = getFiltered();
+  const total = list.reduce((s, c) => s + c.pop, 0);
+  document.getElementById('statTotal').textContent = rollTotal;
+  document.getElementById('statCount').textContent = list.length;
+  document.getElementById('statPop').textContent = (total / 1e8).toFixed(0) + '억';
+}
+
+function getRarity(pop) {
+  if (pop <= 100000)    return { label: '✦ LEGENDARY ✦', color: '#ff4f4f', glow: 'rgba(255,79,79,0.8)',    beamColor: '#ff4f4f' };
+  if (pop <= 500000)    return { label: '✦ EPIC ✦',      color: '#ff9f2f', glow: 'rgba(255,159,47,0.8)',   beamColor: '#ff9f2f' };
+  if (pop <= 2000000)   return { label: '★ RARE ★',      color: '#c47bff', glow: 'rgba(196,123,255,0.7)', beamColor: '#c47bff' };
+  if (pop <= 10000000)  return { label: '◆ UNCOMMON ◆',  color: '#47ffe8', glow: 'rgba(71,255,232,0.7)',  beamColor: '#47ffe8' };
+  if (pop <= 50000000)  return { label: '◇ SPECIAL ◇',   color: '#6495ff', glow: 'rgba(100,149,255,0.6)', beamColor: '#6495ff' };
+  return null;
+}
+
+function showRareEffect(c, onDone) {
+  const rarity = getRarity(c.pop);
+  if (!rarity) { onDone(); return; }
+
+  const overlay = document.getElementById('rareOverlay');
+  const flagEl  = document.getElementById('rareFlagBig');
+  const labelEl = document.getElementById('rareLabel');
+  const tagEl   = document.getElementById('rareTag');
+  const beamsEl = document.getElementById('rareBeams');
+  const partsEl = document.getElementById('rareParticles');
+
+  flagEl.textContent  = c.flag;
+  labelEl.textContent = c.name;
+  tagEl.textContent   = '✦ ' + rarity.label + ' ✦';
+  tagEl.style.cssText += `color:${rarity.color};border:1px solid ${rarity.color};background:rgba(0,0,0,0.5);`;
+  labelEl.style.color = rarity.color;
+  labelEl.style.textShadow = `0 0 40px ${rarity.glow}`;
+
+  // beams
+  beamsEl.innerHTML = '';
+  const beamCount = 12;
+  for (let i = 0; i < beamCount; i++) {
+    const b = document.createElement('div');
+    b.className = 'rare-beam';
+    b.style.cssText = `transform:rotate(${i*(360/beamCount)}deg);background:${rarity.beamColor};animation-delay:${i*0.04}s;`;
+    beamsEl.appendChild(b);
+  }
+
+  // ring
+  const ring = document.createElement('div');
+  ring.className = 'rare-ring';
+  ring.style.border = `2px solid ${rarity.color}`;
+  beamsEl.appendChild(ring);
+
+  // particles
+  partsEl.innerHTML = '';
+  const colors = [rarity.color, '#fff', '#47ffe8', '#e8ff47'];
+  for (let i = 0; i < 40; i++) {
+    const p = document.createElement('div');
+    p.className = 'rare-particle';
+    const size = 4 + Math.random() * 8;
+    const angle = Math.random() * 360;
+    const dist  = 80 + Math.random() * 200;
+    const tx = Math.cos(angle * Math.PI/180) * dist + 'px';
+    const ty = Math.sin(angle * Math.PI/180) * dist + 'px';
+    p.style.cssText = `width:${size}px;height:${size}px;left:50%;top:50%;background:${colors[i%colors.length]};--tx:${tx};--ty:${ty};animation-delay:${Math.random()*0.3}s;`;
+    partsEl.appendChild(p);
+  }
+
+  overlay.classList.add('show');
+  setTimeout(() => {
+    overlay.classList.remove('show');
+    beamsEl.innerHTML = '';
+    partsEl.innerHTML = '';
+    onDone();
+  }, 1800);
+}
+
+function rollCountry() {
+  const list = getFiltered();
+  if (!list.length) return;
+
+  const btn  = document.getElementById('rollBtn');
+  const card = document.getElementById('resultCard');
+
+  btn.classList.add('spinning');
+  btn.textContent = '...';
+
+  card.classList.remove('revealed');
+  card.innerHTML = '<div class="glow"></div><div class="spinner-text">뽑는 중...</div>';
+
+  setTimeout(() => {
+    const c = weightedRandom(list);
+    const total = list.reduce((s, x) => s + x.pop, 0);
+    const pct = (c.pop / total * 100).toFixed(2);
+    const barWidth = Math.min(parseFloat(pct) * 3, 100);
+
+    function revealResult() {
+      card.classList.add('revealed');
+      card.innerHTML = `
+        <div class="glow"></div>
+        <div class="result-flag">${c.flag}</div>
+        <div class="result-name">${c.name}</div>
+        <div class="result-sub">${c.continent} &nbsp;·&nbsp; 인구 <span>${formatPop(c.pop)}</span></div>
+        <div class="prob-section">
+          <div class="prob-header">
+            <span>뽑힐 확률</span>
+            <strong>${pct}%</strong>
+          </div>
+          <div class="prob-track">
+            <div class="prob-fill" id="probFill" style="width:0%"></div>
+          </div>
+        </div>
+      `;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const pf = document.getElementById('probFill');
+          if (pf) pf.style.width = barWidth + '%';
+        });
+      });
+      rollTotal++;
+      history.unshift({ flag: c.flag, name: c.name, pop: c.pop, pct });
+      if (history.length > 10) history.pop();
+      seenSet.add(c.name);
+      renderHistory();
+      updateStats();
+      btn.classList.remove('spinning');
+      btn.textContent = 'SPIN !';
+    }
+
+    showRareEffect(c, revealResult);
+  }, 400);
+}
+
+function renderLucky() {
+  const banner = document.getElementById('luckyBanner');
+  if (!history.length) { banner.style.display = 'none'; return; }
+  const lucky = history.reduce((a, b) => parseFloat(a.pct) < parseFloat(b.pct) ? a : b);
+  banner.style.display = 'block';
+  banner.innerHTML = `
+    <div class="lucky-banner">
+      <span class="lucky-tag">최저 확률</span>
+      <span class="lucky-flag">${lucky.flag}</span>
+      <span class="lucky-name">${lucky.name}</span>
+      <span class="lucky-pct">${lucky.pct}%</span>
+    </div>
+  `;
+}
+
+function renderHistory() {
+  const ul = document.getElementById('historyList');
+  if (!history.length) {
+    ul.innerHTML = '<li class="empty-history">아직 뽑기 기록이 없습니다</li>';
+    renderLucky();
+    return;
+  }
+  ul.innerHTML = history.map((h, i) => `
+    <li class="history-item" style="animation-delay:${i * 0.04}s">
+      <span class="h-flag">${h.flag}</span>
+      <span class="h-name">${h.name}</span>
+      <span class="h-pop">${formatPop(h.pop)}</span>
+      <span class="h-pct">${h.pct}%</span>
+    </li>
+  `).join('');
+  renderLucky();
+}
+
+function clearHistory() {
+  history = [];
+  rollTotal = 0;
+  renderHistory();
+  renderLucky();
+  updateStats();
+  const card = document.getElementById('resultCard');
+  card.classList.remove('revealed');
+  card.innerHTML = '<div class="glow"></div><p class="placeholder-text">버튼을 눌러 나라를 뽑아보세요 🌍</p>';
+}
+
+// Filter buttons
+document.getElementById('filterBar').addEventListener('click', e => {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentRegion = btn.dataset.region;
+  updateStats();
+});
+
+// Keyboard shortcut
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !e.target.matches('button')) {
+    e.preventDefault();
+    rollCountry();
+  }
+});
+
+updateStats();
+</script>
+</body>
+</html>
